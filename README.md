@@ -88,7 +88,7 @@ To enter a running Docker container and edit `000-default-ssl.conf`, follow thes
 
 ### **1. Find the Running Container ID or Name**
 Run the following command to list running containers:
-```sh
+```bash
 docker ps
 ```
 You'll see an output like this:
@@ -102,21 +102,21 @@ Take note of the **CONTAINER ID** or **NAME** (e.g., `my_apache_container`).
 
 ### **2. Access the Running Container**
 Use `docker exec -it` to open a shell inside the container:
-```sh
+```bash
 docker exec -it my_apache_container bash
 ```
 Replace `my_apache_container` with your actual container name or ID.
 
 ---
 
-### **3. Edit `default-ssl.conf`**
+### **3. Edit `000-default-ssl.conf`**
 Once inside the container, open the file with a text editor like `nano` or `vi`:
-```sh
-nano /etc/apache2/sites-available/default-ssl.conf
+```bash
+nano /etc/apache2/sites-available/000-default-ssl.conf
 ```
 or
-```sh
-vi /etc/apache2/sites-available/default-ssl.conf
+```bash
+vi /etc/apache2/sites-available/000-default-ssl.conf
 ```
 
 Make the necessary changes and **save the file**:
@@ -127,11 +127,11 @@ Make the necessary changes and **save the file**:
 
 ### **4. Restart Apache for Changes to Take Effect**
 After editing, restart Apache inside the container:
-```sh
+```bash
 service apache2 restart
 ```
 or
-```sh
+```bash
 apache2ctl restart
 ```
 
@@ -139,8 +139,8 @@ apache2ctl restart
 
 ### **Alternative: Copy the Modified File from Host to Container**
 If you prefer to edit the file on your local machine and copy it to the container, use:
-```sh
-docker cp default-ssl.conf my_apache_container:/etc/apache2/sites-available/default-ssl.conf
+```bash
+docker cp default-ssl.conf my_apache_container:/etc/apache2/sites-available/000-default-ssl.conf
 ```
 Then restart Apache as mentioned earlier.
 
@@ -148,7 +148,7 @@ Then restart Apache as mentioned earlier.
 
 ### **5. Exit the Container**
 Once done, type:
-```sh
+```bash
 exit
 ```
 This will return you to your host machine.
