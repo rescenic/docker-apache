@@ -2,7 +2,7 @@
 
 DIY AWS Lambda for PHP applications!
 
-Docker image containing Ubuntu 24.04 LTS core with Apache 2.4 and PHP 8.3. This image is designed to be used in AWS environments for high density PHP application hosting. WordPress 5.x and Drupal 10.x and later are tested to work.
+Docker image containing Ubuntu 24.04 LTS core with Apache 2.4 and PHP 8.3 + Let's Encyrpt (Optional). This image is designed to be used in AWS environments for high density PHP application hosting. WordPress 5.x and Drupal 10.x and later are tested to work.
 
 # Architecture Overview
 
@@ -30,7 +30,7 @@ Docker image containing Ubuntu 24.04 LTS core with Apache 2.4 and PHP 8.3. This 
 
 * Apache MPM prefork is configured to reduce RAM usage, a WordPress 5.x container will idle around 50-75MB of RAM.
 * WordPress W3TC plugin cache folder is in `$WP_ROOT/wp-content/cache`. EFS is slow, so it's recommended to move the cache folder inside the docker container. Delete the cache folder and run `ln -s /srv/example.com/www/wp-content/cache /tmp`. Cache folder will be hosted within docker instance and run faster.
-* PHP POST max and max file upload size is increased to 64MB to handle large file uploads.
+* PHP POST max and max file upload size is increased to 1G & 512M to handle large file uploads.
 * EFS is slow, to improve performance php opcache revalidation time is increased from default 2 seconds to 300 seconds.
 * apache process runs as `www-data`. Inside the docker instance, none of the processes are run as `root`. `setcap` is used to permit non-root apache process to bind to TCP port 80.
 * Apache config is aware of SSL termination on AWS ALB or CloudFlare Flexible SSL settings. WordPress site URL can be set to https://www.example.com and SSL termination can be done on AWS ALB or CloudFlare and WordPress will not throw infinite HTTP redirection errors.
@@ -43,7 +43,7 @@ Docker image containing Ubuntu 24.04 LTS core with Apache 2.4 and PHP 8.3. This 
 To build:
 
 ```bash
-docker build --no-cache -t rsubr/php-apache-ubuntu:noble .
+docker build --no-cache -t rescenic/php-apache-ubuntu:noble .
 ```
 
 # Running
@@ -53,7 +53,7 @@ docker build --no-cache -t rsubr/php-apache-ubuntu:noble .
 Run with internal document root to reveal Apache/PHP config. See http://localhost/index.php and http://localhost/.config/
 
 ```bash
-docker run --name=test -p 80:80 rsubr/php-apache-ubuntu:noble
+docker run --name=test -p 80:80 rescenic/php-apache-ubuntu:noble
 ```
 
 ## Example 2: Testing WordPress
@@ -61,7 +61,7 @@ docker run --name=test -p 80:80 rsubr/php-apache-ubuntu:noble
 Run a WordPress site from /srv/example.com/www
 
 ```bash
-docker run --name=example-com -v /srv/example.com/www:/var/www/html -p 80:80 rsubr/php-apache-ubuntu:noble
+docker run --name=example-com -v /srv/example.com/www:/var/www/html -p 80:80 rescenic/php-apache-ubuntu:noble
 ```
 
 ## Example 3: Using custom apache2 and php config
@@ -69,7 +69,7 @@ docker run --name=example-com -v /srv/example.com/www:/var/www/html -p 80:80 rsu
 Run a WordPress site from /srv/example.com/www, but this time use custom apache and php config from /srv/example.com/etc/{apache,php}
 
 ```bash
-docker run --name=example-com -v /srv/example.com/www:/var/www/html -v /srv/example.com/etc/apache2:/etc/apache2:ro -v /srv/example.com/etc/php:/etc/php:ro -p 80:80 rsubr/php-apache-ubuntu:noble
+docker run --name=example-com -v /srv/example.com/www:/var/www/html -v /srv/example.com/etc/apache2:/etc/apache2:ro -v /srv/example.com/etc/php:/etc/php:ro -p 80:80 rescenic/php-apache-ubuntu:noble
 ```
 
 ## Example 4: Running as a docker service in a docker swarm
@@ -77,8 +77,82 @@ docker run --name=example-com -v /srv/example.com/www:/var/www/html -v /srv/exam
 Run 2 replicas of the container as a docker service. This command must be run from a docker swarm manager node. AWS ALB and Target Group must be created to route traffic for example.com to this container:
 
 ```bash
-docker service create --replicas 2 --name example-com --publish published=8000,target=80,mode=host --mount type=bind,source=/srv/example.com/www,destination=/var/www/html rsubr/php-apache-ubuntu:noble
+docker service create --replicas 2 --name example-com --publish published=8000,target=80,mode=host --mount type=bind,source=/srv/example.com/www,destination=/var/www/html rescenic/php-apache-ubuntu:noble
 ```
+
+## Example 5: Run Let's Encrypt
+
+To enter a running Docker container and edit `000-default-ssl.conf`, follow these steps:
+
+---
+
+### **1. Find the Running Container ID or Name**
+Run the following command to list running containers:
+```sh
+docker ps
+```
+You'll see an output like this:
+```
+CONTAINER ID   IMAGE          COMMAND                 CREATED         STATUS         PORTS                    NAMES
+abc123def456   my_apache_img  "apache2ctl -D FOR..."  10 minutes ago  Up 10 minutes 80/tcp, 443/tcp          my_apache_container
+```
+Take note of the **CONTAINER ID** or **NAME** (e.g., `my_apache_container`).
+
+---
+
+### **2. Access the Running Container**
+Use `docker exec -it` to open a shell inside the container:
+```sh
+docker exec -it my_apache_container bash
+```
+Replace `my_apache_container` with your actual container name or ID.
+
+---
+
+### **3. Edit `default-ssl.conf`**
+Once inside the container, open the file with a text editor like `nano` or `vi`:
+```sh
+nano /etc/apache2/sites-available/default-ssl.conf
+```
+or
+```sh
+vi /etc/apache2/sites-available/default-ssl.conf
+```
+
+Make the necessary changes and **save the file**:
+- In `nano`: Press `CTRL + X`, then `Y`, then `Enter` to save.
+- In `vi`: Press `ESC`, type `:wq`, then press `Enter`.
+
+---
+
+### **4. Restart Apache for Changes to Take Effect**
+After editing, restart Apache inside the container:
+```sh
+service apache2 restart
+```
+or
+```sh
+apache2ctl restart
+```
+
+---
+
+### **Alternative: Copy the Modified File from Host to Container**
+If you prefer to edit the file on your local machine and copy it to the container, use:
+```sh
+docker cp default-ssl.conf my_apache_container:/etc/apache2/sites-available/default-ssl.conf
+```
+Then restart Apache as mentioned earlier.
+
+---
+
+### **5. Exit the Container**
+Once done, type:
+```sh
+exit
+```
+This will return you to your host machine.
+
 
 # TODO
 

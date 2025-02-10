@@ -8,11 +8,11 @@ on:
 jobs:
   build:
     runs-on: ubuntu-20.04
-    
+
     steps:
       - name: checkout code
         uses: actions/checkout@v2
-        
+
       - name: set up qemu for linux/arm64
         uses: docker/setup-qemu-action@v1
 
@@ -28,6 +28,6 @@ jobs:
       - name: build multi-arch image and push to docker hub
         run: |
           docker buildx build --push \
-            --tag rsubr/php-apache-ubuntu:noble  \
-            --tag rsubr/php-apache-ubuntu:24.04  \
+            --tag rescenic/php-apache-ubuntu:noble  \
+            --tag rescenic/php-apache-ubuntu:24.04  \
             --platform linux/amd64,linux/arm64 .
