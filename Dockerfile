@@ -61,7 +61,7 @@ COPY src/status.conf      /etc/apache2/mods-available
 COPY src/99-local.ini     /etc/php/8.1/apache2/conf.d
 
 # Enable SSL site
-RUN a2ensite default-ssl
+RUN a2ensite 000-default-ssl
 
 # Expose details about this docker image
 COPY src/index.php /var/www/html
