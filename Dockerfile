@@ -11,7 +11,11 @@ LABEL \
 # Stop dpkg-reconfigure tzdata from prompting for input
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install apache, php, certbot (Let's Encrypt client), and mod_ssl
+# Define environment variables (overridable at runtime)
+ENV SERVER_DOMAIN=example.com
+ENV ADMIN_EMAIL=admin@${SERVER_DOMAIN}
+
+# Install Apache, PHP, Certbot (Let's Encrypt client), and dependencies
 RUN apt-get update && \
     apt-get -y install \
         apache2 \
@@ -35,40 +39,41 @@ RUN apt-get update && \
         php-xmlrpc \
         php-yaml \
         php-zip \
-# Ensure apache can bind to 80 and 443 as non-root
         libcap2-bin \
         certbot \
         python3-certbot-apache && \
     setcap 'cap_net_bind_service=+ep' /usr/sbin/apache2 && \
     dpkg --purge libcap2-bin && \
     apt-get -y autoremove && \
-# As apache is never run as root, change dir ownership
     a2disconf other-vhosts-access-log && \
     chown -Rh www-data:www-data /var/run/apache2 && \
-# Enable Apache modules
     a2enmod rewrite headers expires ext_filter ssl && \
-# Install ImageMagick CLI tools
     apt-get -y install --no-install-recommends imagemagick && \
-# Clean up apt setup files
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Override default apache and php config
-COPY src/000-default.conf /etc/apache2/sites-available
-COPY src/000-default-ssl.conf /etc/apache2/sites-available
-COPY src/mpm_prefork.conf /etc/apache2/mods-available
-COPY src/status.conf      /etc/apache2/mods-available
-COPY src/99-local.ini     /etc/php/8.1/apache2/conf.d
+# Create self-signed SSL certificate
+RUN mkdir -p /etc/letsencrypt/live/${SERVER_DOMAIN} && \
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+        -keyout /etc/letsencrypt/live/${SERVER_DOMAIN}/privkey.pem \
+        -out /etc/letsencrypt/live/${SERVER_DOMAIN}/fullchain.pem \
+        -subj "/CN=${SERVER_DOMAIN}/O=Self-Signed Certificate"
 
-# Enable SSL site
-RUN a2ensite 000-default-ssl
+# Copy Apache configuration files
+COPY src/000-default.conf /etc/apache2/sites-available/
+COPY src/000-default-ssl.template.conf /etc/apache2/sites-available/
 
-# Expose details about this docker image
+# Replace domain placeholders in SSL config
+RUN sed -i "s/__DOMAIN__/${SERVER_DOMAIN}/g" /etc/apache2/sites-available/000-default-ssl.template.conf && \
+    sed -i "s/__EMAIL__/${ADMIN_EMAIL}/g" /etc/apache2/sites-available/000-default-ssl.template.conf && \
+    mv /etc/apache2/sites-available/000-default-ssl.template.conf /etc/apache2/sites-available/000-default-ssl.conf && \
+    a2ensite 000-default-ssl
+
+# Expose details about this Docker image
 COPY src/index.php /var/www/html
 RUN rm -f /var/www/html/index.html && \
     mkdir /var/www/html/.config && \
     tar cf /var/www/html/.config/etc-apache2.tar etc/apache2 && \
-    tar cf /var/www/html/.config/etc-php.tar     etc/php && \
+    tar cf /var/www/html/.config/etc-php.tar etc/php && \
     dpkg -l > /var/www/html/.config/dpkg-l.txt
 
 # Expose HTTP and HTTPS ports
