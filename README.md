@@ -1,3 +1,6 @@
+[![Multi-Arch Docker Build using
+QEMU](https://github.com/rescenic/docker-apache/actions/workflows/build-release.yml/badge.svg)](https://github.com/rescenic/docker-apache/actions/workflows/build-release.yml)
+
 # Description
 
 DIY AWS Lambda for PHP applications!
