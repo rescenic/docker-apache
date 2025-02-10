@@ -79,6 +79,8 @@ RUN rm -f /var/www/html/index.html && \
 # Expose HTTP and HTTPS ports
 EXPOSE 80 443
 
-USER www-data
+RUN chown -R www-data:www-data /var/log/apache2 && \
+    ln -sf /dev/stdout /var/log/apache2/access.log && \
+    ln -sf /dev/stderr /var/log/apache2/error.log
 
 ENTRYPOINT ["apache2ctl", "-D", "FOREGROUND"]
